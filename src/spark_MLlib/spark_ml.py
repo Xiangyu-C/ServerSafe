@@ -1,9 +1,8 @@
 from pyspark import SparkContext
 from pyspark.ml.feature import StringIndexer, VectorAssembler
-from pyspark.ml.evaluation import BinaryClassificationMetrics
 from pyspark.ml.classification import RandomForestClassifier
-from pyspark.sql.functions import udf
-from pyspark.sql.types import StringType
+from pyspark.sql.functions import col
+from pyspark.sql.types import *
 from pyspark.ml import Pipeline
 import numpy as np
 
@@ -13,15 +12,15 @@ sc = SparkContext("public DNS here", "Build Attack Classification Model")
 rdd = sc.textFile(data)
 df = spark.read.csv(rdd)
 
-udf_to_category = udf(binarize, StringType())
-dframe = dframe.withColumn('binary_event', udf_to_category('Label'))
+#udf_to_category = udf(binarize, StringType())
+#df = df.withColumn('binary_event', udf_to_category('Label'))
 
-feat_cols = dframe.columns.tolist().remove('Label')
-feat_cols = feat_cols.remove('binary_event')
+feat_cols = df.columns
+feat_cols.remove('Label')
 
 assembler_feats=VectorAssembler(inputCols=feat_cols, outputCol='features')
-label_indexer = StringIndexer(inputCol='binary_response', outputCol="label")
-pipeline = Pipeline(stages=[assembler_features, label_indexer])
+label_indexer = StringIndexer(inputCol='Label', outputCol="label")
+pipeline = Pipeline(stages=[assembler_feats, label_indexer])
 
 all_data = pipeline.fit(df).transform(df)
 all_data.cache()
