@@ -14,9 +14,9 @@ rdd = sc.textFile(data)
 df = spark.read.csv(rdd)
 
 udf_to_category = udf(binarize, StringType())
-dframe = dframe.withColumn('binary_event', udf_to_category('Label'))
+df = df.withColumn('binary_event', udf_to_category('Label'))
 
-feat_cols = dframe.columns.tolist().remove('Label')
+feat_cols = df.columns.tolist().remove('Label')
 feat_cols = feat_cols.remove('binary_event')
 
 assembler_feats=VectorAssembler(inputCols=feat_cols, outputCol='features')
