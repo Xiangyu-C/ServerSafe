@@ -2,27 +2,35 @@
 from kafka import KafkaProducer
 import time
 import json
-import smart_open
-import config
+from smart_open import smart_open
 import pandas as pd
+import boto3
+
 
 def main():
-    server_address = 'server address'
-    file1 = 'https://s3.amazonaws.com/cyber-insight/all_cyber_attack_data.csv'
-    file2 = 'https://s3.amazonaws.com/cyber-insight/cyber_attack_subset.csv'
-    producer = KafkaProducer(bootstrap_servers=server_address)
-    csv_stream = smart_open.smart_open(file1)
-    all_headers = pd.read_csv(file1, nrows=1, header=None).values.tolist()[0]
-    feature_list = pd.read_csv(file2, nrows=1, header=None).values.tolist()[0]
+    server_address = 'ec2-54-80-57-187.compute-1.amazonaws.com:9092'
+    client = boto3.client('s3')
+    resource = boto3.resource('s3')
+    bucket_name = 'cyber-insight'
+    my_bucket = resource.Bucket(bucket_name)
+    obj1 = client.get_object(Bucket=bucket_name, Key='all_cyber_attack_data.csv')
+    obj2 = client.get_object(Bucket=bucket_name, Key='cyber_attack_subset.csv')
+
+    all_headers = pd.read_csv(obj1['Body'], nrows=1, header=None).values.tolist()[0]
+    feature_list = pd.read_csv(obj2['Body'], nrows=1, header=None).values.tolist()[0]
     feature_index_list = [all_headers.index(x) for x in feature_list]
-    kafka_topic = 'cyber_events'
+
+    producer = KafkaProducer(bootstrap_servers=server_address)
+    csv_stream = smart_open('s3://cyber-insight/all_cyber_attack_data.csv')
+
+    kafka_topic = 'cyber'
     sep=','
 
     def convert_to_dict_then_json(row):
-        list_temp = row.decode('utf-8').replace('\n', '').split(sep)
+        list_temp = row.decode('utf-8').replace('\n', '').replace('\r', '').split(sep)
         feature_values = pd.Series(list_temp)[feature_index_list].tolist()
         feat_dict = dict(zip(feature_list, feature_values))
-        feat_json = json.dumps(feat_dict).decode('utf-8')
+        feat_json = json.dumps(feat_dict).encode('utf-8')
         return(feat_json)
 
     n=0
@@ -33,6 +41,7 @@ def main():
         if n>=10000:
             print('End of streaming')
             break
+        time.sleep(0.1)
 
 if __name__ == '__main__':
     main()
