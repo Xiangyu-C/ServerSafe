@@ -1,8 +1,13 @@
 from pyspark import SparkContext
 from pyspark.ml.feature import StringIndexer, VectorAssembler
 from pyspark.ml.classification import RandomForestClassifier
+<<<<<<< HEAD
 from pyspark.sql.functions import col
 from pyspark.sql.types import *
+=======
+from pyspark.sql.functions import udf
+from pyspark.sql.types import StringType
+>>>>>>> 949241711c667109d140e87356e7f3db53218741
 from pyspark.ml import Pipeline
 import numpy as np
 
@@ -12,11 +17,19 @@ sc = SparkContext("public DNS here", "Build Attack Classification Model")
 rdd = sc.textFile(data)
 df = spark.read.csv(rdd)
 
+<<<<<<< HEAD
 #udf_to_category = udf(binarize, StringType())
 #df = df.withColumn('binary_event', udf_to_category('Label'))
 
 feat_cols = df.columns
 feat_cols.remove('Label')
+=======
+udf_to_category = udf(binarize, StringType())
+df = df.withColumn('binary_event', udf_to_category('Label'))
+
+feat_cols = df.columns.tolist().remove('Label')
+feat_cols = feat_cols.remove('binary_event')
+>>>>>>> 949241711c667109d140e87356e7f3db53218741
 
 assembler_feats=VectorAssembler(inputCols=feat_cols, outputCol='features')
 label_indexer = StringIndexer(inputCol='Label', outputCol="label")
