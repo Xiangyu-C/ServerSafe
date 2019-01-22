@@ -5,6 +5,8 @@ from pyspark.ml.classification import RandomForestClassifier
 from pyspark.mllib.evaluation import BinaryClassificationMetrics as metric
 from pyspark.sql.functions import udf
 from pyspark.sql.types import *
+from pyspark.sql.functions import col
+from pyspark.sql.types import StringType
 from pyspark.ml import Pipeline
 
 
@@ -22,6 +24,8 @@ def convertColumn(df, names, newType):
   return(df)
 
 df = convertColumn(df, feat_cols, FloatType())
+#udf_to_category = udf(binarize, StringType())
+#df = df.withColumn('binary_event', udf_to_category('Label'))
 
 assembler_feats=VectorAssembler(inputCols=feat_cols, outputCol='features')
 label_indexer = StringIndexer(inputCol='Label', outputCol="target")
