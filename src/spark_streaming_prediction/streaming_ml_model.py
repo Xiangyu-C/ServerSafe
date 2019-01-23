@@ -33,5 +33,5 @@ for message in consumer:
     predict = rfc_model.transform(feat_data)
 
     results = predict.select(['probability', 'label']).collect()
-    print(results['label'])
+    print(results)
     time.sleep(0.1)
