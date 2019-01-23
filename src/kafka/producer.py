@@ -23,14 +23,14 @@ def main():
     producer = KafkaProducer(bootstrap_servers=server_address)
     csv_stream = smart_open('s3://cyber-insight/all_cyber_attack_data.csv')
 
-    kafka_topic = 'cyber_events'
+    kafka_topic = 'cyber'
     sep=','
 
     def convert_to_dict_then_json(row):
         list_temp = row.decode('utf-8').replace('\n', '').replace('\r', '').split(sep)
         feature_values = pd.Series(list_temp)[feature_index_list].tolist()
         feat_dict = dict(zip(feature_list, feature_values))
-        feat_json = json.dumps(feat_dict).decode('utf-8')
+        feat_json = json.dumps(feat_dict).encode('utf-8')
         return(feat_json)
 
     n=0
@@ -41,6 +41,8 @@ def main():
         if n>=10000:
             print('End of streaming')
             break
+        time.sleep(0.1)
 
 if __name__ == '__main__':
     main()
+
