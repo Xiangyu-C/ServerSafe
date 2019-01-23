@@ -1,5 +1,8 @@
+#!/usr/bin/python3.5
 from pyspark.ml.classification import RandomForestClassificationModel
 from pyspark import SparkContext
+from pyspark.sql import SparkSession
+from pyspark.conf import SparkConf
 from kafka import KafkaConsumer
 from pyspark.ml.feature import StringIndexer, VectorAssembler
 from pyspark.sql.types import StringType
@@ -8,6 +11,14 @@ from json import loads
 import pandas as pd
 import time
 
+spark = SparkSession \
+    .builder \
+    .appName("Real time prediction") \
+    .config("spark.executor.memory", "1gb") \
+    .getOrCreate()
+
+sc = spark.sparkContext
+#sc = SparkContext("local", "MLapp")
 file = 'cyber_attack_subset.csv'
 kafka_topic = 'cyber'
 feature_list = pd.read_csv(file, nrows=1, header=None).values.tolist()[0]
@@ -24,7 +35,7 @@ consumer = KafkaConsumer(
      value_deserializer=lambda x: loads(x.decode('utf-8')))
 
 for message in consumer:
-    df=spark.read.json(sc.parellelize(message))
+    df=spark.read.json(sc.parallelize(message))
     df=df[feature_list]
     df.na.fill(0)
     assembler_feats=VectorAssembler(inputCols=feat_cols, outputCol='features')
