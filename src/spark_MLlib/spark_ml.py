@@ -8,13 +8,20 @@ from pyspark.sql.types import *
 from pyspark.sql.functions import col
 from pyspark.sql.types import StringType
 from pyspark.ml import Pipeline
+import os, boto
 
 
 # Setup spark and read in training data
-data = 'cyber_attack_subset.csv'
-spark = SparkSession.builder.appName('Build Attack Classification Model').getOrCreate()
-sc = SparkContext
-df = spark.read.csv(data, header = True, inferSchema = True)
+aws_access_key = os.getenv('AWS_ACCESS_KEY_ID', 'default')
+aws_secret_access_key = os.getenv('AWS_SECRET_ACCESS_KEY', 'default')
+conn = boto.connect_s3(aws_access_key, aws_secret_access_key)
+bk = conn.get_bucket('cyber-insight', validate=False)
+
+spark = SparkSession.builder.appName('Build Attack Classification Model') \
+                            .getOrCreate()
+sc = spark.sparkContext
+path = 's3n://cyber-insight/cyber-attack-subset.csv'
+df = spark.read.csv(path, header = True, inferSchema = True)
 
 # Get feature columns
 feat_cols = df.columns
