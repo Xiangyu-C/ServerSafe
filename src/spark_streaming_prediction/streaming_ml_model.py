@@ -5,12 +5,13 @@ from pyspark.sql import SparkSession
 from pyspark.conf import SparkConf
 from kafka import KafkaConsumer
 from pyspark.ml.feature import StringIndexer, VectorAssembler
-from pyspark.sql.types import StringType
+from pyspark.sql.types import *
 import numpy as np
 from json import loads
 import pandas as pd
 import time
 import os, boto
+
 
 # Establish connection with s3
 aws_access_key = os.getenv('AWS_ACCESS_KEY_ID', 'default')
@@ -22,8 +23,12 @@ bk = conn.get_bucket('cyber-insight', validate=False)
 spark = SparkSession \
     .builder \
     .appName("Real time prediction") \
+    .master('spark://ip-10-0-0-14.ec2.internal:7077') \
     .getOrCreate()
-spark.conf.set('spark.executor.memory', '1g')
+spark.conf.set('spark.executor.memory', '5g')
+spark.conf.set('spark.executor.cores', 5)
+spark.conf.set('spark.cores.max', 5)
+spark.conf.set('spark.driver.memory', '5g')
 sc = spark.sparkContext
 # Get proper feature names
 kafka_topic = 'cyber'
@@ -62,6 +67,12 @@ consumer = KafkaConsumer(
      group_id='my-group',
      value_deserializer=lambda x: loads(x.decode('utf-8')))
 
+def convertColumn(df, names, newType):
+  for name in names:
+     df = df.withColumn(name, df[name].cast(newType))
+  return(df)
+
+
 # Read the message from producer and tranformed the data into a DataFrame
 # Then get the feature vector. Predict using the trained model
 for message in consumer:
@@ -72,8 +83,9 @@ for message in consumer:
     df = df[feature_list]
     df = spark.createDataFrame(df)
     df.na.fill(0)
+    df = convertColumn(df, feature_list, FloatType())
     assembler_feats=VectorAssembler(inputCols=feature_list, outputCol='features')
     feat_data = assembler_feats.transform(df)
     predict = rfc_model.transform(feat_data)
-    results = predict.select(['probability', 'label']).collect()
-    results.show()
+    results = predict.select(['probability', 'prediction']).collect()
+    print(results)
