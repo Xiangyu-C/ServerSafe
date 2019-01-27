@@ -27,7 +27,7 @@ def main():
 
     # Initiate a producer using kafka-python and smart-open modules
     producer = KafkaProducer(bootstrap_servers=server_address)
-    csv_stream = smart_open('s3://cyber-insight/all_cyber_attack_data.csv')
+    csv_stream = smart_open('s3://cyber-insight/cyber_attack_stream_data_part1.csv')
 
     kafka_topic = 'cyber'
     sep=','

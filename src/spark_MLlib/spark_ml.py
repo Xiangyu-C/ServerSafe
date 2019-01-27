@@ -21,7 +21,7 @@ spark = SparkSession.builder.appName('Build Attack Classification Model') \
                             .master('spark://ip-10-0-0-14.ec2.internal:7077') \
                             .getOrCreate()
 sc = spark.sparkContext
-path = 's3n://cyber-insight/cyber-attack-subset.csv'
+path = 's3n://cyber-insight/cyber_attack_subset_new.csv'
 df = spark.read.csv(path, header = True, inferSchema = True)
 
 # Get feature columns
@@ -58,4 +58,4 @@ results_list = [(float(i[0][0]), 1.0-float(i[1])) for i in results]
 score_and_labels = sc.parallelize(results_list)
 metrics=metric(score_and_labels)
 print('ROC score is: ', metrics.areaUnderROC)
-#trained_model.write().overwrite().save('s3n://cyber-insight/rfc_model')
+trained_model.write().overwrite().save('s3n://cyber-insight/rfc_model_new')

@@ -6,6 +6,7 @@ from pyspark.conf import SparkConf
 from kafka import KafkaConsumer
 from pyspark.ml.feature import StringIndexer, VectorAssembler
 from pyspark.sql.types import *
+from pyspark.ml import Pipeline
 import numpy as np
 from json import loads
 import pandas as pd
@@ -25,10 +26,10 @@ spark = SparkSession \
     .appName("Real time prediction") \
     .master('spark://ip-10-0-0-14.ec2.internal:7077') \
     .getOrCreate()
-spark.conf.set('spark.executor.memory', '5g')
-spark.conf.set('spark.executor.cores', 5)
-spark.conf.set('spark.cores.max', 5)
-spark.conf.set('spark.driver.memory', '5g')
+#spark.conf.set('spark.executor.memory', '5g')
+#spark.conf.set('spark.executor.cores', 5)
+#spark.conf.set('spark.cores.max', 5)
+#spark.conf.set('spark.driver.memory', '5g')
 sc = spark.sparkContext
 # Get proper feature names
 kafka_topic = 'cyber'
@@ -56,7 +57,7 @@ feature_list = ['Bwd Pkt Len Min',
                 ]
 
 # Reload trained randomforest model from s3
-rfc_model = RandomForestClassificationModel.load('s3n://cyber-insight/rfc_model')
+rfc_model = RandomForestClassificationModel.load('s3n://cyber-insight/rfc_model_new')
 
 # Initiate a consumer using kafka-python module
 consumer = KafkaConsumer(
@@ -77,15 +78,16 @@ def convertColumn(df, names, newType):
 # Then get the feature vector. Predict using the trained model
 for message in consumer:
     message_dict = message.value
-    del message_dict[u'Label']
-    message_dict = {str(k):float(v) for k, v in message_dict.items()}
+    #message_dict[u'Label']
+    message_dict = {str(k):str(v) for k, v in message_dict.items()}
     df = pd.DataFrame(message_dict, index=range(1))
-    df = df[feature_list]
+    #df = df[feature_list]
+    df[feature_list] = df[feature_list].apply(pd.to_numeric, errors='coerce').fillna(0)
     df = spark.createDataFrame(df)
-    df.na.fill(0)
     df = convertColumn(df, feature_list, FloatType())
-    assembler_feats=VectorAssembler(inputCols=feature_list, outputCol='features')
-    feat_data = assembler_feats.transform(df)
-    predict = rfc_model.transform(feat_data)
-    results = predict.select(['probability', 'prediction']).collect()
-    print(results)
+    assembler_feats = VectorAssembler(inputCols=feature_list, outputCol='features')
+    label_indexer = StringIndexer(inputCol='Label', outputCol="target")
+    pipeline = Pipeline(stages=[assembler_feats, label_indexer])
+    new_data = pipeline.fit(df).transform(df)
+    predict = rfc_model.transform(new_data)
+    predict.select(['Label', 'target', 'prediction']).show()

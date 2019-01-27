@@ -5,12 +5,12 @@ import dash_html_components as html
 
 app = dash.Dash()
 colors = {
-    'background': '#111111',
+    'background': 'black',
     'text': '#7FDBFF'
 }
 app.layout = html.Div(style={'backgroundColor': colors['background']}, children=[
     html.H1(
-        children='Hello Dash',
+        children='Cyber Attack Identification',
         style={
             'textAlign': 'center',
             'color': colors['text']
