@@ -5,17 +5,25 @@ import dash_core_components as dcc
 import dash_html_components as html
 import plotly
 from dash.dependencies import Input, Output
+import plotly.graph_objs as go
+import psycopg2
+import os
 
-# pip install pyorbital
-from pyorbital.orbital import Orbital
-satellite = Orbital('TERRA')
+
+DB_URL = os.environ['DATABASE_URL']
+conn = psycopg2.connect(DB_URL), sslmode='require')
+cur = conn.cursor()
+cur.execute("SELECT count(Label) as Total_benign FROM cyber where Label=Benign")
+fruits1=cur.fetchall()
+cur.execute("SELECT count(prediction) as predicted as Benign from cyber where prediction=0")
+sales1=cur.fetchall()
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 app.layout = html.Div(
     html.Div([
-        html.H4('TERRA Satellite Live Feed'),
+        html.H4('Real time cyber attack monitoring'),
         html.Div(id='live-update-text'),
         dcc.Graph(id='live-update-graph'),
         dcc.Interval(
