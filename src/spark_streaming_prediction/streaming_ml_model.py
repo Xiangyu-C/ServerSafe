@@ -31,6 +31,11 @@ spark = SparkSession \
 #spark.conf.set('spark.cores.max', 5)
 #spark.conf.set('spark.driver.memory', '5g')
 sc = spark.sparkContext
+
+#connect to Cassandra DB for writing prediction results
+cluster = Cluster(['ec2-18-232-2-76.compute-1.amazonaws.com'])
+cass_session = cluster.connect('cyber_id')
+
 # Get proper feature names
 kafka_topic = 'cyber'
 feature_list = ['Bwd Pkt Len Min',
@@ -76,6 +81,7 @@ def convertColumn(df, names, newType):
 
 # Read the message from producer and tranformed the data into a DataFrame
 # Then get the feature vector. Predict using the trained model
+n = 1  # First index in Cassandra table
 for message in consumer:
     message_dict = message.value
     #message_dict[u'Label']
@@ -90,4 +96,12 @@ for message in consumer:
     pipeline = Pipeline(stages=[assembler_feats, label_indexer])
     new_data = pipeline.fit(df).transform(df)
     predict = rfc_model.transform(new_data)
-    predict.select(['Label', 'prediction']).show()
+    #predictions = predict.select(['Label', 'prediction'])
+    cass_session.execute(
+        """
+        insert into cyber_prediction (id, prediction, true_label)
+        values (%s, %s, %s)
+        """,
+        (n, predict.select('prediction').first()['prediction'], predict.select('Label').first()['Label'])
+    )
+    n+=1
