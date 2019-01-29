@@ -35,7 +35,7 @@ def main():
     # Deserialize the stream and then convert to json then serialize to send it
     def convert_to_dict_then_json(row):
         list_temp = row.decode('utf-8').replace('\n', '').replace('\r', '').split(sep)
-        feature_values = pd.Series(list_temp)[feature_index_list].tolist()
+        feature_values = [list_temp[i] for i in feature_index_list]
         feat_dict = dict(zip(feature_list, feature_values))
         feat_json = json.dumps(feat_dict).encode('utf-8')
         return(feat_json)
@@ -49,7 +49,6 @@ def main():
         if n>=10000:
             print('End of streaming')
             break
-        time.sleep(1)
 
 if __name__ == '__main__':
     main()
