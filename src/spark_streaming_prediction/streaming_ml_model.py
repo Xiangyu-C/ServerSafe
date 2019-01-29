@@ -7,7 +7,7 @@ from kafka import KafkaConsumer
 from pyspark.ml.feature import StringIndexer, VectorAssembler
 from pyspark.sql.types import *
 from pyspark.ml import Pipeline
-import numpy as np
+from cassandra.cluster import Cluster
 from json import loads
 import pandas as pd
 import time
@@ -86,8 +86,8 @@ for message in consumer:
     df = spark.createDataFrame(df)
     df = convertColumn(df, feature_list, FloatType())
     assembler_feats = VectorAssembler(inputCols=feature_list, outputCol='features')
-    label_indexer = StringIndexer(inputCol='Label', outputCol="target")
+    #label_indexer = StringIndexer(inputCol='Label', outputCol="target")
     pipeline = Pipeline(stages=[assembler_feats, label_indexer])
     new_data = pipeline.fit(df).transform(df)
     predict = rfc_model.transform(new_data)
-    predict.select(['Label', 'target', 'prediction']).show()
+    predict.select(['Label', 'prediction']).show()
