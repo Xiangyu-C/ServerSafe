@@ -9,7 +9,7 @@ import time
 import os, boto
 
 
-# Establish connection with s3
+# Set up connection with S3
 aws_access_key = os.getenv('AWS_ACCESS_KEY_ID', 'default')
 aws_secret_access_key = os.getenv('AWS_SECRET_ACCESS_KEY', 'default')
 conn = boto.connect_s3(aws_access_key, aws_secret_access_key)
@@ -98,9 +98,9 @@ start = time.time()
 for message in consumer:
     # Note now all the keys are not the same order as we want
     message_dict = message.value
-    label = message_dict.pop('Label')
-    message_dict = {str(k):float(v) for k, v in message_dict.items()}
-    message_dict['Label'] = label
+    #label = message_dict.pop('Label')
+    #message_dict = {str(k):float(v) for k, v in message_dict.items()}
+    #message_dict['Label'] = label
     df = spark.read.json(sc.parallelize([message_dict]))
     # Reorder all columns to match format of training data seen by model
     df = df.select(feature_list_all)
@@ -116,7 +116,7 @@ for message in consumer:
         (n, predictions[0][0], predictions[0][1])
     )
     n+=1
-    if n>=200:
+    if n>=1000:
         end = time.time()
-        print('prediction speed at ', 2000/(end-start), ' msgs/sec')
+        print('prediction speed at ', 1000/(end-start), ' msgs/sec')
         break

@@ -13,7 +13,6 @@ def main():
     Make a producer to send lines of a csv file to simulate data
     streaming into Spark
     """
-    server_address = 'ec2-54-80-57-187.compute-1.amazonaws.com:9092'
     client = boto3.client('s3')
     resource = boto3.resource('s3')
     bucket_name = 'cyber-insight'
