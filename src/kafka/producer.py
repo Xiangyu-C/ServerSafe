@@ -18,17 +18,21 @@ def main():
     resource = boto3.resource('s3')
     bucket_name = 'cyber-insight'
     my_bucket = resource.Bucket(bucket_name)
-    obj1 = client.get_object(Bucket=bucket_name, Key='all_cyber_attack_data.csv')
-    obj2 = client.get_object(Bucket=bucket_name, Key='cyber_attack_subset.csv')
+    obj1 = client.get_object(Bucket=bucket_name, Key='cyber_attack_stream_data_part1.csv')
+    obj2 = client.get_object(Bucket=bucket_name, Key='cyber_attack_subset_new.csv')
 
+    # Get column names for streaming data and for features used in ML model
     all_headers = pd.read_csv(obj1['Body'], nrows=1, header=None).values.tolist()[0]
     feature_list = pd.read_csv(obj2['Body'], nrows=1, header=None).values.tolist()[0]
+
+    # Get indexes for features in headers in streaming data
     feature_index_list = [all_headers.index(x) for x in feature_list]
 
     # Initiate a producer using kafka-python and smart-open modules
     producer = KafkaProducer(bootstrap_servers=server_address)
     csv_stream = smart_open('s3://cyber-insight/cyber_attack_stream_data_part1.csv')
 
+    # Set Kafka topic and separator to use
     kafka_topic = 'cyber'
     sep=','
 
@@ -36,11 +40,14 @@ def main():
     def convert_to_dict_then_json(row):
         list_temp = row.decode('utf-8').replace('\n', '').replace('\r', '').split(sep)
         feature_values = [list_temp[i] for i in feature_index_list]
-        feat_dict = dict(zip(feature_list, feature_values))
+        label = feature_values.pop(-1)
+        feature_values_clean = [0 if isinstance(x, str) else x for x in feature_values]
+        feature_values_clean.append(label)
+        feat_dict = dict(zip(feature_list, feature_values_clean))
         feat_json = json.dumps(feat_dict).encode('utf-8')
         return(feat_json)
 
-    # Send the lines to kafka at 1 record /sec for testing
+
     n=0
     for line in csv_stream:
         if n!=0:

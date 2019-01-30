@@ -1,9 +1,8 @@
-from pyspark import SparkContext
+#!/usr/bin/python3.5
 from pyspark.sql import SparkSession
 from pyspark.ml.feature import StringIndexer, VectorAssembler
 from pyspark.ml.classification import RandomForestClassifier
 from pyspark.mllib.evaluation import BinaryClassificationMetrics as metric
-from pyspark.sql.functions import udf
 from pyspark.sql.types import *
 from pyspark.sql.functions import col
 from pyspark.sql.types import StringType
@@ -54,7 +53,9 @@ predict = trained_model.transform(data_test)
 # Evaluate the model using test data and output the AUC score
 # Save the trained model into s3 bucket
 results = predict.select(['probability', 'target']).collect()
+results2 = predict.select(['prediction', 'target']).collect()
 results_list = [(float(i[0][0]), 1.0-float(i[1])) for i in results]
+results_list2 = [(float(i[0][0]), 1.0-float(i[1])) for i in results]
 score_and_labels = sc.parallelize(results_list)
 metrics=metric(score_and_labels)
 print('ROC score is: ', metrics.areaUnderROC)
