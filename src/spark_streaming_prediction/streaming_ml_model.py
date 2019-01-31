@@ -93,27 +93,33 @@ consumer = KafkaConsumer(
 
 # Read the message from producer and tranformed the data into a DataFrame
 # Then get the feature vector. Predict using the trained model
-n = 1  # First index in Cassandra table
+num_thousand = 0
+n_msg = 0
+msg_list = []
 start = time.time()
 for message in consumer:
     # Note now all the keys are not the same order as we want
     message_dict = message.value
-    df = spark.createDataFrame([message_dict])
-    # Reorder all columns to match format of training data seen by model
-    df = df.select(feature_list_all)
-    assembler_feats = VectorAssembler(inputCols=feature_list, outputCol='features')
-    new_data = assembler_feats.transform(df)
-    predict = rfc_model.transform(new_data)
-    predictions = predict.select(['Label', 'prediction']).collect()
-    cass_session.execute(
-        """
-        insert into cyber_ml (id, true_label, prediction)
-        values (%s, %s, %s)
-        """,
-        (n, predictions[0][0], predictions[0][1])
-    )
-    n+=1
-    if n>=1000:
+    msg_list.append(message_dict)
+    n_msg +=1
+    if n_msg==5000:
+        df = spark.createDataFrame(msg_list)
+        # Reorder all columns to match format of training data seen by model
+        df = df.select(feature_list_all)
+        assembler_feats = VectorAssembler(inputCols=feature_list, outputCol='features')
+        new_data = assembler_feats.transform(df)
+        predict = rfc_model.transform(new_data)
+        predictions = predict.select(['Label', 'prediction']).collect()
+        #cass_session.execute(
+        #    """
+        #    insert into cyber_ml (id, true_label, prediction)
+        #    values (%s, %s, %s)
+        #    """,
+        #    (n, predictions[0][0], predictions[0][1])
+        #)
+        num_thousand += 1
+        n_msg = 0
+    if num_thousand==2:
         end = time.time()
-        print('prediction speed at ', 1000/(end-start), ' msgs/sec')
+        print('prediction speed at ', 5000*num_thousand/(end-start), ' msgs/sec')
         break
