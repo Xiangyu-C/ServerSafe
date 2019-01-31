@@ -98,10 +98,7 @@ start = time.time()
 for message in consumer:
     # Note now all the keys are not the same order as we want
     message_dict = message.value
-    #label = message_dict.pop('Label')
-    #message_dict = {str(k):float(v) for k, v in message_dict.items()}
-    #message_dict['Label'] = label
-    df = spark.read.json(sc.parallelize([message_dict]))
+    df = spark.createDataFrame([message_dict])
     # Reorder all columns to match format of training data seen by model
     df = df.select(feature_list_all)
     assembler_feats = VectorAssembler(inputCols=feature_list, outputCol='features')

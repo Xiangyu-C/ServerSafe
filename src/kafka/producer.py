@@ -61,9 +61,9 @@ def main():
         if n!=0:
             producer.send(kafka_topic, convert_to_dict_then_json(line))
         n+=1
-        if n>=2000:
+        if n>=100000:
             end = time.time()
-            print('End of streaming.', ' Sent at ', 2000/(end-start), ' msg/sec')
+            print('End of streaming.', ' Sent at ', 100000/(end-start), ' msg/sec')
             break
 
 if __name__ == '__main__':
