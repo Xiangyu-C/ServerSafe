@@ -1,1 +1,1 @@
-spark-submit stream_ml.py --master spark://ip-10-0-0-14.ec2.internal:7077 --deploy-mode cluster
+spark-submit --packages datastax:spark-cassandra-connector:2.3.1-s_2.11 your_file.py --deploy-mode cluster
