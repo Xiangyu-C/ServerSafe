@@ -1,5 +1,5 @@
 import datetime
-
+from cassandra.cluster import Cluster
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
@@ -10,13 +10,8 @@ import psycopg2
 import os
 
 
-DB_URL = os.environ['DATABASE_URL']
-conn = psycopg2.connect(DB_URL), sslmode='require')
-cur = conn.cursor()
-cur.execute("SELECT count(Label) as Total_benign FROM cyber where Label=Benign")
-fruits1=cur.fetchall()
-cur.execute("SELECT count(prediction) as predicted as Benign from cyber where prediction=0")
-sales1=cur.fetchall()
+cluster = Cluster(['ec2-18-232-2-76.compute-1.amazonaws.com'])
+cass_session = cluster.connect('cyber_id')
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
