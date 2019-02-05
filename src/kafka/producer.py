@@ -23,8 +23,8 @@ def main():
     # Get column names for streaming data and for features used in ML model
     all_headers = pd.read_csv(obj1['Body'], nrows=1, header=None).values.tolist()[0]
     feature_list = pd.read_csv(obj2['Body'], nrows=1, header=None).values.tolist()[0]
-    # Add generated IP information and timestamps
-    feature_list.extend(['Source, Destination, Timestamp'])
+    # Get generated IPs and trained_model
+    feature_list.extend(['Source', 'Destination', 'Timestamp'])
 
     # Get indexes for features in headers in streaming data
     feature_index_list = [all_headers.index(x) for x in feature_list]
@@ -49,7 +49,7 @@ def main():
     def convert_to_dict_then_json(row):
         list_temp = row.decode('utf-8').replace('\n', '').replace('\r', '').split(sep)
         feature_values = [list_temp[i] for i in feature_index_list]
-        timestamp = feature_values.pop(-1)
+        time_stamp = feature_values.pop(-1)
         dest_ip = feature_values.pop(-1)
         source_ip = feature_values.pop(-1)
         label = feature_values.pop(-1)
