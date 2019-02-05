@@ -17,12 +17,14 @@ def main():
     resource = boto3.resource('s3')
     bucket_name = 'cyber-insight'
     my_bucket = resource.Bucket(bucket_name)
-    obj1 = client.get_object(Bucket=bucket_name, Key='cyber_attack_stream_data_part1.csv')
+    obj1 = client.get_object(Bucket=bucket_name, Key='cyber_attack_stream_data.csv')
     obj2 = client.get_object(Bucket=bucket_name, Key='cyber_attack_subset_new.csv')
 
     # Get column names for streaming data and for features used in ML model
     all_headers = pd.read_csv(obj1['Body'], nrows=1, header=None).values.tolist()[0]
     feature_list = pd.read_csv(obj2['Body'], nrows=1, header=None).values.tolist()[0]
+    # Get generated IPs and trained_model
+    feature_list.extend(['Source', 'Destination', 'Timestamp'])
 
     # Get indexes for features in headers in streaming data
     feature_index_list = [all_headers.index(x) for x in feature_list]
@@ -30,7 +32,7 @@ def main():
     # Initiate a producer using kafka-python and smart-open modules
     server_address = 'ec2-54-80-57-187.compute-1.amazonaws.com:9092'
     producer = KafkaProducer(bootstrap_servers=server_address)
-    csv_stream = smart_open('s3://cyber-insight/cyber_attack_stream_data_part1.csv')
+    csv_stream = smart_open('s3://cyber-insight/cyber_attack_stream_data.csv')
 
     # Set Kafka topic and separator to use
     kafka_topic = 'cyber'
@@ -47,9 +49,12 @@ def main():
     def convert_to_dict_then_json(row):
         list_temp = row.decode('utf-8').replace('\n', '').replace('\r', '').split(sep)
         feature_values = [list_temp[i] for i in feature_index_list]
+        time_stamp = feature_values.pop(-1)
+        dest_ip = feature_values.pop(-1)
+        source_ip = feature_values.pop(-1)
         label = feature_values.pop(-1)
         feature_values_clean = [float(x) if is_number(x) else 0 for x in feature_values]
-        feature_values_clean.append(label)
+        feature_values_clean.extend([label, source_ip, dest_ip, time_stamp])
         feat_dict = dict(zip(feature_list, feature_values_clean))
         feat_json = json.dumps(feat_dict).encode('utf-8')
         return(feat_json)
