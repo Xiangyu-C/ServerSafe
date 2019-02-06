@@ -54,7 +54,7 @@ def main():
         source_ip = feature_values.pop(-1)
         label = feature_values.pop(-1)
         feature_values_clean = [float(x) if is_number(x) else 0 for x in feature_values]
-        feature_values_clean.extend([label, source_ip, dest_ip, timestamp])
+        feature_values_clean.extend([label, source_ip, dest_ip, time_stamp])
         feat_dict = dict(zip(feature_list, feature_values_clean))
         feat_json = json.dumps(feat_dict).encode('utf-8')
         return(feat_json)

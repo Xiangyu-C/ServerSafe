@@ -18,8 +18,10 @@ sc = spark.sparkContext
 #               .load().show()
 
 # To append, primary key can't be duplicated. If a row has the same primary key, that row will be overwritten in Cassandra
+list_temp = [{'blob': 'good'}, {'blob': 'bad'}]
+df = spark.createDataFrame(list_temp)
 df.write \
   .format('org.apache.spark.sql.cassandra') \
   .mode('append') \
-  .options(table='de', keyspace='test') \
+  .options(table='test3', keyspace='test') \
   .save()
