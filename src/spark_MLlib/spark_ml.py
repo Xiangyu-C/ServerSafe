@@ -5,7 +5,6 @@ from pyspark.ml.classification import RandomForestClassifier
 from pyspark.mllib.evaluation import BinaryClassificationMetrics as metric
 from pyspark.sql.types import *
 from pyspark.sql.functions import col
-from pyspark.sql.types import StringType
 from pyspark.ml import Pipeline
 import os, boto
 
