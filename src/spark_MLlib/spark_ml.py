@@ -62,7 +62,7 @@ df = convertColumn(df, feat_cols, FloatType())
 # Build a pipeline to transform the data into feature vectors
 assembler_feats=VectorAssembler(inputCols=feat_cols, outputCol='features')
 label_indexer = StringIndexer(inputCol='Label', outputCol="target")
-#converter = IndexToString(inputCol='prediction', outputCol='predicted_label', labels=label_indexer.labels)
+#converter = IndexToString(inputCol='prediction', outputCol='predicted_label')
 pipeline = Pipeline(stages=[assembler_feats, label_indexer])
 
 # Transform the data and do a random split
