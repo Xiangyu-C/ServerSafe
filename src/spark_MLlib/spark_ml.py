@@ -1,11 +1,13 @@
 #!/usr/bin/python3.5
 from pyspark.sql import SparkSession
-from pyspark.ml.feature import StringIndexer, VectorAssembler
+from pyspark.ml.feature import StringIndexer, VectorAssembler, IndexToString
 from pyspark.ml.classification import RandomForestClassifier
 from pyspark.mllib.evaluation import BinaryClassificationMetrics as metric
+from pyspark.ml.evaluation import MulticlassClassificationEvaluator as multi_metric
 from pyspark.sql.types import *
 from pyspark.sql.functions import col
 from pyspark.ml import Pipeline
+from sklearn.metrics import confusion_matrix
 import os, boto
 
 
@@ -19,12 +21,35 @@ spark = SparkSession.builder.appName('Build Attack Classification Model') \
                             .master('spark://ip-10-0-0-14.ec2.internal:7077') \
                             .getOrCreate()
 sc = spark.sparkContext
-path = 's3n://cyber-insight/cyber_attack_subset_new.csv'
+#path = 's3n://cyber-insight/cyber_attack_subset_new.csv'
+path = 's3n://cyber-insight/cyber_attack_multi.csv'
 df = spark.read.csv(path, header = True, inferSchema = True)
 
 # Get feature columns
-feat_cols = df.columns
-feat_cols.remove('Label')
+#feat_cols = df.columns
+#feat_cols.remove('Label')
+feat_cols =    ['Bwd Pkt Len Min',
+                'Subflow Fwd Byts',
+                'TotLen Fwd Pkts',
+                'Fwd Pkt Len Mean',
+                'Bwd Pkt Len Std',
+                'Flow IAT Mean',
+                'Fwd IAT Min',
+                'Flow Duration',
+                'Flow IAT Std',
+                'Active Min',
+                'Active Mean',
+                'Bwd IAT Mean',
+                'Fwd IAT Mean',
+                'Init Fwd Win Byts',
+                'Fwd PSH Flags',
+                'SYN Flag Cnt',
+                'Fwd Pkts/s',
+                'Init Bwd Win Byts',
+                'Bwd Pkts/s',
+                'PSH Flag Cnt',
+                'Pkt Size Avg'
+                ]
 
 # Convert features to float type
 def convertColumn(df, names, newType):
@@ -37,6 +62,7 @@ df = convertColumn(df, feat_cols, FloatType())
 # Build a pipeline to transform the data into feature vectors
 assembler_feats=VectorAssembler(inputCols=feat_cols, outputCol='features')
 label_indexer = StringIndexer(inputCol='Label', outputCol="target")
+#converter = IndexToString(inputCol='prediction', outputCol='predicted_label', labels=label_indexer.labels)
 pipeline = Pipeline(stages=[assembler_feats, label_indexer])
 
 # Transform the data and do a random split
@@ -49,13 +75,19 @@ rfc = RandomForestClassifier(labelCol='target', featuresCol='features', numTrees
 trained_model = rfc.fit(data_train)
 predict = trained_model.transform(data_test)
 
+#converted = converter.transform(predict)
+result = predict.select('Label', 'target', 'prediction')
+evaluator = multi_metric(labelCol='target', predictionCol='prediction', metricName='accuracy')
+print('Accuracy is: ', evaluator.evaluate(result))
+trained_model.write().overwrite().save('s3n://cyber-insight/rfc_model_multi')
+
 # Evaluate the model using test data and output the AUC score
 # Save the trained model into s3 bucket
-results = predict.select(['probability', 'target']).collect()
-results2 = predict.select(['prediction', 'target']).collect()
-results_list = [(float(i[0][0]), 1.0-float(i[1])) for i in results]
-results_list2 = [(float(i[0][0]), 1.0-float(i[1])) for i in results]
-score_and_labels = sc.parallelize(results_list)
-metrics=metric(score_and_labels)
-print('ROC score is: ', metrics.areaUnderROC)
-trained_model.write().overwrite().save('s3n://cyber-insight/rfc_model_new')
+#results = predict.select(['probability', 'target']).collect()
+#results2 = predict.select(['prediction', 'target']).collect()
+#results_list = [(float(i[0][0]), 1.0-float(i[1])) for i in results]
+#results_list2 = [(float(i[0][0]), 1.0-float(i[1])) for i in results]
+#score_and_labels = sc.parallelize(results_list)
+#metrics=metric(score_and_labels)
+#print('ROC score is: ', metrics.areaUnderROC)
+#trained_model.write().overwrite().save('s3n://cyber-insight/rfc_model_new')

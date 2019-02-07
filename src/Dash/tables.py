@@ -37,7 +37,7 @@ colors = {
 }
 
 app.layout = html.Div(style={'backgroundColor': colors['background'], 'color': colors['text']}, children=[
-    html.H1(style={'align': 'center'}, children='Cyber Attack Dashboard'),
+    html.H1(style={'textAlign': 'center'}, children='Server Safe Monitor Dashboard'),
     dcc.Graph(id='live-update-graph-attack'),
     dcc.Graph(id='live-update-graph-traffic'),
     html.Div(id='live-update-table'),
@@ -59,7 +59,7 @@ def update_graph_attack_live(n):
     for row in rows:
         data['attacks'].extend([row.a, row.b, row.c, row.d, row.e, row.f, row.g,
                                row.h, row.i, row.j, row.k, row.l, row.m])
-
+    data['attacks'] =  [x/50 for x in data['attacks']]
     # Create the graph with subplots
     fig = {
     'data': [go.Bar(x=data['attacks'],
@@ -67,11 +67,13 @@ def update_graph_attack_live(n):
                     orientation='h')],
     'layout': {
         'title': 'Predicted attacks per second by server',
+        #'width': 500,
         'xaxis': {
             'title': '# of predicted attacks per second'
         },
         'yaxis': {
-            'title': 'Server IPs'
+            'title': 'Server IPs',
+            'automargin': True
         }
     }
     }
@@ -102,7 +104,8 @@ def update_graph_traffic_live(n):
             'title': 'Total traffic (# of requests) per second'
         },
         'yaxis': {
-            'title': 'Server IPs'
+            'title': 'Server IPs',
+            'automargin': True
         }
     }
     }
