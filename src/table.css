@@ -1,6 +1,7 @@
-table, td, th {  
+table, td, th {
   border: 1px solid #ddd;
-  text-align: center;
+  width: 500px;
+  margin 0 auto;
 }
 
 table {
@@ -11,4 +12,3 @@ table {
 th, td {
   padding: 15px;
 }
-
