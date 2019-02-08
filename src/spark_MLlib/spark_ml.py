@@ -62,23 +62,27 @@ df = convertColumn(df, feat_cols, FloatType())
 # Build a pipeline to transform the data into feature vectors
 assembler_feats=VectorAssembler(inputCols=feat_cols, outputCol='features')
 label_indexer = StringIndexer(inputCol='Label', outputCol="target")
-#converter = IndexToString(inputCol='prediction', outputCol='predicted_label')
 pipeline = Pipeline(stages=[assembler_feats, label_indexer])
 
 # Transform the data and do a random split
 all_data = pipeline.fit(df).transform(df)
 all_data.cache()
 data_train, data_test = all_data.randomSplit([0.75, 0.25], seed=123)
+# Get class labels for using IndexToString to convert back from indexes
+Labels = all_data.groupBy('Label').count().orderBy('count', ascending=False).select('Label').collect()
+Labels = [row.Label for row in Labels]
+# Convert label indexes back to actual labels
+converter = IndexToString(inputCol='prediction', outputCol='predicted_label', labels=Labels)
 
 # Initiate a RandomForest model and train on the data
 rfc = RandomForestClassifier(labelCol='target', featuresCol='features', numTrees=100)
 trained_model = rfc.fit(data_train)
 predict = trained_model.transform(data_test)
+results = converter.transform(predict)
 
 #converted = converter.transform(predict)
-result = predict.select('Label', 'target', 'prediction')
 evaluator = multi_metric(labelCol='target', predictionCol='prediction', metricName='accuracy')
-print('Accuracy is: ', evaluator.evaluate(result))
+print('Accuracy is: ', evaluator.evaluate(results))
 trained_model.write().overwrite().save('s3n://cyber-insight/rfc_model_multi')
 
 # Evaluate the model using test data and output the AUC score

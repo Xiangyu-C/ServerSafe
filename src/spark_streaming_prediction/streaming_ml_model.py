@@ -3,7 +3,7 @@ from pyspark.ml.classification import RandomForestClassificationModel
 from pyspark.sql import SparkSession
 from kafka import KafkaConsumer
 from pyspark import SparkConf
-from pyspark.ml.feature import StringIndexer, VectorAssembler
+from pyspark.ml.feature import StringIndexer, VectorAssembler, IndexToString
 from cassandra.cluster import Cluster
 from cassandra.util import uuid_from_time
 from datetime import datetime
@@ -87,7 +87,7 @@ feature_list = ['Bwd Pkt Len Min',
                 ]
 
 # Reload trained randomforest model from s3
-rfc_model = RandomForestClassificationModel.load('s3n://cyber-insight/rfc_model_new')
+rfc_model = RandomForestClassificationModel.load('s3n://cyber-insight/rfc_model_multi')
 
 # Initiate a consumer using kafka-python module
 consumer = KafkaConsumer(

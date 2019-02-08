@@ -28,6 +28,20 @@ server_list = ['168.16.4.175',
                '4.41.219.116',
                '94.172.102.187']
 
+labels_dict = {0: 'Benign',
+               1: 'DDOS attack-HOIC',
+               2: 'DDoS attacks-LOIC-HTTP',
+               3: 'DoS attacks-Hulk',
+               4: 'Bot',
+               5: 'FTP-BruteForce',
+               6: 'SSH-Bruteforce',
+               7: 'Infilteration',
+               8: 'DoS attacks-SlowHTTPTest',
+               9: 'DoS attacks-GoldenEye',
+              10: 'DoS attacks-Slowloris',
+              11: 'Brute Force -Web',
+              12: 'DDOS attack-LOIC-UDP'}
+
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 server = app.server
 
@@ -117,7 +131,7 @@ def update_graph_traffic_live(n):
               [Input('interval-component', 'n_intervals')])
 def update_table_live(n):
     df = pd.DataFrame(list(cass_session.execute('select * from cyber_predictions')))
-
+    df['predicted_labels'] = df['predictions'].map(labels_dict)
     total_benign = df['label'].value_counts()['Benign']
     total_malicious = len(df)-total_benign
     benign_predicted = df[(df['prediction']==0) & (df['label']=='Benign')].count()
