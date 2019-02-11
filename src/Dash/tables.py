@@ -6,6 +6,7 @@ import plotly
 from dash.dependencies import Input, Output
 from cassandra.cluster import Cluster
 import pandas as pd
+import dash_table
 import plotly.plotly as py
 import plotly.graph_objs as go
 
@@ -52,8 +53,10 @@ colors = {
 
 app.layout = html.Div(style={'backgroundColor': colors['background'], 'color': colors['text']}, children=[
     html.H1(style={'textAlign': 'center'}, children='Server Safe Monitor Dashboard'),
-    dcc.Graph(id='live-update-graph-attack'),
-    dcc.Graph(id='live-update-graph-traffic'),
+    # Put the two graphs side by side
+    html.Div([html.Div([dcc.Graph(id='live-update-graph-attack')], className='six columns'),
+              html.Div([dcc.Graph(id='live-update-graph-traffic')], className='six columns'),
+             ], className='row'),
     html.Div(id='live-update-table'),
     dcc.Interval(
         id='interval-component',
@@ -138,16 +141,24 @@ def update_table_live(n):
     malicious_predicted = df[(df['prediction']==1) & (df['label']!='Benign')].count()
     benign_rate = str(round((benign_predicted/total_benign)[0],2))
     malicious_rate = str(round((malicious_predicted/total_malicious)[0], 2))
+    df1 = pd.DataFrame({'Traffic Class': ['Benign', 'Malicious'],
+                        'Prediction Accuracy': [benign_rate, malicious_rate],
+                        'Total Count': [total_benign, total_malicious]})
 
-    return html.Table(
-    [
-        html.Tr( [html.Th("Traffic Class"), html.Th("Prediction Accuracy"), html.Th('Total count')] )
-    ] +
-    [
-        html.Tr( [html.Td("Benign"), html.Td(benign_rate), html.Td(total_benign)] ),
-        html.Tr( [html.Td("Malicious"), html.Td(malicious_rate), html.Td(total_malicious)] )
-    ]
-)
+    return dash_table.DataTable(
+           id='table',
+           columns=[{"name": i, "id": i} for i in ['Traffic Class', 'Prediction Accuracy', 'Total Count']],
+           data=df1.to_dict("rows"),
+           style_header={'backgroundColor': 'rgb(30, 30, 30)',
+                         'font-size': '180%',
+                         'fontWeight': 'bold',
+                         'color': 'rgb(127, 219, 255)'},
+           style_cell={
+               'backgroundColor': 'rgb(50, 50, 50)',
+               'color': 'white',
+               'font-size': '150%'
+           }
+         )
 
 if __name__ == '__main__':
     app.run_server(debug=True, host='0.0.0.0', port=80)
