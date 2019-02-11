@@ -84,7 +84,6 @@ def update_graph_attack_live(n):
                     orientation='h')],
     'layout': {
         'title': 'Predicted attacks per second by server',
-        #'width': 500,
         'xaxis': {
             'title': '# of predicted attacks per second'
         },
