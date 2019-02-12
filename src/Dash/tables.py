@@ -109,12 +109,18 @@ def update_graph_traffic_live(n):
         data['traffic'].extend([row.a, row.b, row.c, row.d, row.e, row.f, row.g,
                                row.h, row.i, row.j, row.k, row.l, row.m])
 
+    clrred = 'rgb(222,0,0)'
+    clrblue = 'rgb(31,119,180)'
+    clrs  = [clrred if x >300 else clrblue for x in data['traffic']]
+
     # Create the graph with subplots
     fig = {
     'data': [go.Bar(x=data['traffic'],
                     y=data['servers'],
+                    marker=dict(color=clrs),
                     orientation='h')],
     'layout': {
+        'height': 400,
         'title': 'Total traffic per second by server',
         'xaxis': {
             'title': 'Total traffic (# of requests) per second'
