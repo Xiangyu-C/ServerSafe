@@ -132,29 +132,35 @@ def update_graph_traffic_live(n):
 @app.callback(Output('live-update-table', 'children'),
               [Input('interval-component', 'n_intervals')])
 def update_table_live(n):
-    df = pd.DataFrame(list(cass_session.execute('select * from cyber_predictions')))
-    df['predicted_labels'] = df['predictions'].map(labels_dict)
-    total_benign = df['label'].value_counts()['Benign']
-    total_malicious = len(df)-total_benign
-    benign_predicted = df[(df['prediction']==0) & (df['label']=='Benign')].count()
-    malicious_predicted = df[(df['prediction']==1) & (df['label']!='Benign')].count()
-    benign_rate = str(round((benign_predicted/total_benign)[0],2))
-    malicious_rate = str(round((malicious_predicted/total_malicious)[0], 2))
-    df1 = pd.DataFrame({'Traffic Class': ['Benign', 'Malicious'],
-                        'Prediction Accuracy': [benign_rate, malicious_rate],
-                        'Total Count': [total_benign, total_malicious]})
+    df = pd.DataFrame(list(cass_session.execute('select * from all_predictions')))
+    df['predicted_labels'] = df['prediction'].map(labels_dict)
+    top_6 = df['Label'].value_counts()[0:6]
+    top_6_labels = top_6.index.tolist()
+    all_top_6_data = df[df['predicted_labels'].isin(top_6_labels)]
+    correct_predictions = all_top_6_data[all_top_6_data['predicted_labels']==all_top_6_data['Label']]
+    true_predictions_count = []
+    for label in top_6_labels:
+        true_predictions_count.append(correct_predictions['Label'].value_counts()[label])
+    prediction_accuracy = [str(round(true_predictions_count[i]*100/top_6[i], 1))+'%' for i in range(6)]
+    top_6_counts = top_6.tolist()
+    prediction_accuracy.insert(0, 'Accuracy')
+    top_6_counts.insert(0, 'Total')
+    top_6_labels.insert(0, 'Traffic Class')
+    df1 = pd.DataFrame([prediction_accuracy, top_6_counts], columns=top_6_labels)
 
     return dash_table.DataTable(
            id='table',
-           columns=[{"name": i, "id": i} for i in ['Traffic Class', 'Prediction Accuracy', 'Total Count']],
+           columns=[{"name": i, "id": i} for i in df1.columns], #['Traffic Class', 'Prediction Accuracy', 'Total Count']],
            data=df1.to_dict("rows"),
            style_header={'backgroundColor': 'rgb(30, 30, 30)',
                          'font-size': '180%',
                          'fontWeight': 'bold',
+                         'textAlign': 'center',
                          'color': 'rgb(127, 219, 255)'},
            style_cell={
                'backgroundColor': 'rgb(50, 50, 50)',
                'color': 'white',
+               'textAlign': 'center',
                'font-size': '150%'
            }
          )

@@ -173,19 +173,13 @@ for message in consumer:
         # Save per server results into tables
         attacks_and_count_per_server(predictions, time_lapse)
         # Now save the raw prediction results into another table
-        predictions = predictions.withColumnRenamed('Timestamp', 'timestamp')      \
-                                 .withColumnRenamed('Label', 'label')              \
-                                 .withColumnRenamed('Source', 'source')            \
-                                 .withColumnRenamed('Destination', 'destination')
         predictions.write \
           .format('org.apache.spark.sql.cassandra') \
           .mode('append') \
-          .options(table='cyber_predictions', keyspace='cyber_id') \
+          .options(table='all_predictions', keyspace='cyber_id') \
           .save()
         num_thousand += 1
         n_msg = 0
         start = end
     if num_thousand==1:
-        #end = time.time()
-        #print('prediction speed at ', 5000*num_thousand/(end-start), ' msgs/sec')
         break
