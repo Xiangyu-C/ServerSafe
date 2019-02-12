@@ -76,7 +76,6 @@ def update_graph_attack_live(n):
     for row in rows:
         data['attacks'].extend([row.a, row.b, row.c, row.d, row.e, row.f, row.g,
                                row.h, row.i, row.j, row.k, row.l, row.m])
-    data['attacks'] =  [x/50 for x in data['attacks']]
     # Create the graph with subplots
     fig = {
     'data': [go.Bar(x=data['attacks'],
