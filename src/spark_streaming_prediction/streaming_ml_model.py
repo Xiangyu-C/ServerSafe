@@ -93,7 +93,7 @@ rfc_model = RandomForestClassificationModel.load('s3n://cyber-insight/rfc_model_
 consumer = KafkaConsumer(
     'cyber',
      bootstrap_servers=['ec2-54-80-57-187.compute-1.amazonaws.com:9092'],
-     auto_offset_reset='earliest',
+     auto_offset_reset='lastest',  #'earliest',
      enable_auto_commit=True,
      group_id='my-group',
      value_deserializer=lambda x: loads(x.decode('utf-8')))
