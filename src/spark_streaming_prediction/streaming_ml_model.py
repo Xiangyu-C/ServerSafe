@@ -93,7 +93,7 @@ rfc_model = RandomForestClassificationModel.load('s3n://cyber-insight/rfc_model_
 consumer = KafkaConsumer(
     'cyber',
      bootstrap_servers=['ec2-54-80-57-187.compute-1.amazonaws.com:9092'],
-     auto_offset_reset='earliest',
+     auto_offset_reset='latest',  #'earliest',
      enable_auto_commit=True,
      group_id='my-group',
      value_deserializer=lambda x: loads(x.decode('utf-8')))
@@ -173,19 +173,13 @@ for message in consumer:
         # Save per server results into tables
         attacks_and_count_per_server(predictions, time_lapse)
         # Now save the raw prediction results into another table
-        predictions = predictions.withColumnRenamed('Timestamp', 'timestamp')      \
-                                 .withColumnRenamed('Label', 'label')              \
-                                 .withColumnRenamed('Source', 'source')            \
-                                 .withColumnRenamed('Destination', 'destination')
         predictions.write \
           .format('org.apache.spark.sql.cassandra') \
           .mode('append') \
-          .options(table='cyber_predictions', keyspace='cyber_id') \
+          .options(table='all_predictions', keyspace='cyber_id') \
           .save()
         num_thousand += 1
         n_msg = 0
         start = end
     if num_thousand==1:
-        #end = time.time()
-        #print('prediction speed at ', 5000*num_thousand/(end-start), ' msgs/sec')
         break
