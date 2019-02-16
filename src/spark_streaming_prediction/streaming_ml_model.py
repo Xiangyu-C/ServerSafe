@@ -1,9 +1,8 @@
 #!/usr/bin/python3.5
 from pyspark.ml.classification import RandomForestClassificationModel
 from pyspark.sql import SparkSession
-from kafka import KafkaConsumer
 from pyspark import SparkConf
-from pyspark.ml.feature import StringIndexer, VectorAssembler, IndexToString
+from pyspark.ml.feature import VectorAssembler
 from cassandra.cluster import Cluster
 from cassandra.util import uuid_from_time
 from datetime import datetime
@@ -63,6 +62,33 @@ feature_list_all = ['Bwd Pkt Len Min',
                     'Timestamp'
                     ]
 
+schema = StructType([StructField('Bwd Pkt Len Min', FloatType(), True),
+                     StructField('Subflow Fwd Byts', FloatType(), True),
+                     StructField('TotLen Fwd Pkts', FloatType(), True),
+                     StructField('Fwd Pkt Len Mean', FloatType(), True),
+                     StructField('Bwd Pkt Len Std', FloatType(), True),
+                     StructField('Flow IAT Mean', FloatType(), True),
+                     StructField('Fwd IAT Min', FloatType(), True),
+                     StructField('Flow Duration', FloatType(), True),
+                     StructField('Flow IAT Std', FloatType(), True),
+                     StructField('Active Min', FloatType(), True),
+                     StructField('Active Mean', FloatType(), True),
+                     StructField('Bwd IAT Mean', FloatType(), True),
+                     StructField('Fwd IAT Mean', FloatType(), True),
+                     StructField('Init Fwd Win Byts', FloatType(), True),
+                     StructField('Fwd PSH Flags', FloatType(), True),
+                     StructField('SYN Flag Cnt', FloatType(), True),
+                     StructField('Fwd Pkts/s', FloatType(), True),
+                     StructField('Init Bwd Win Byts', FloatType(), True),
+                     StructField('Bwd Pkts/s', FloatType(), True),
+                     StructField('PSH Flag Cnt', FloatType(), True),
+                     StructField('Pkt Size Avg', FloatType(), True),
+                     StructField('Label', StringType(), True),
+                     StructField('Source', StringType(), True),
+                     StructField('Destination', StringType(), True),
+                     StructField('Timestamp', StringType(), True)]
+                    )
+
 feature_list = ['Bwd Pkt Len Min',
                 'Subflow Fwd Byts',
                 'TotLen Fwd Pkts',
@@ -86,17 +112,9 @@ feature_list = ['Bwd Pkt Len Min',
                 'Pkt Size Avg'
                 ]
 
-# Reload trained randomforest model from s3
+# Reload trained randomforest model from s3 and instantiate VectorAssembler for transforming
 rfc_model = RandomForestClassificationModel.load('s3n://cyber-insight/rfc_model_multi')
-
-# Initiate a consumer using kafka-python module
-consumer = KafkaConsumer(
-    'cyber',
-     bootstrap_servers=['ec2-54-80-57-187.compute-1.amazonaws.com:9092'],
-     auto_offset_reset='latest',  #'earliest',
-     enable_auto_commit=True,
-     group_id='my-group',
-     value_deserializer=lambda x: loads(x.decode('utf-8')))
+assembler_feats = VectorAssembler(inputCols=feature_list, outputCol='features')
 
 def attacks_and_count_per_server(df, tl):
     """
@@ -114,7 +132,6 @@ def attacks_and_count_per_server(df, tl):
     all_traffic = spark.sql("Select Destination, count(*) as count from results \
                              group by Destination order by Destination")
 
-    #tl = tl*10000000
     # Collect values for attack predictions and also total visits per second
     s1a, s2a, s3a, s4a, s5a, s6a, s7a, s8a, s9a, s10a, s11a, s12a, s13a = \
     all_predictions.collect()
@@ -149,37 +166,35 @@ def attacks_and_count_per_server(df, tl):
                s7t, s8t, s9t, s10t, s11t, s12t, s13t)                        \
     )
 
-# Read the message from producer and tranformed the data into a DataFrame
-# Then get the feature vector. Predict usinghttps://datastax.github.io/python-driver/api/cassandra/util.html the trained model
-num_thousand = 0
-n_msg = 0
-msg_list = []
-start = time.time()
-for message in consumer:
-    # Note now all the keys are not in the same order as the original file
-    message_dict = message.value
-    msg_list.append(message_dict)
-    n_msg +=1
-    if n_msg==5000:
-        end = time.time()
-        time_lapse = end-start
-        df = spark.createDataFrame(msg_list)
-        # Reorder all columns to match format of training data seen by model
-        df = df.select(feature_list_all)
-        assembler_feats = VectorAssembler(inputCols=feature_list, outputCol='features')
-        new_data = assembler_feats.transform(df)
-        predict = rfc_model.transform(new_data)
-        predictions = predict.select(['Timestamp', 'Label', 'prediction', 'Source', 'Destination'])
-        # Save per server results into tables
-        attacks_and_count_per_server(predictions, time_lapse)
-        # Now save the raw prediction results into another table
-        predictions.write \
-          .format('org.apache.spark.sql.cassandra') \
-          .mode('append') \
-          .options(table='all_predictions', keyspace='cyber_id') \
-          .save()
-        num_thousand += 1
-        n_msg = 0
-        start = end
-    if num_thousand==1:
-        break
+def predict_and_save(rdd):
+    """
+    This function processes the json dstream and convert
+    to a dataframe for the ML model to predict on the 
+    server traffic events and save to a cassandra table
+    """
+    ss = SparkSession(rdd.context)
+    df = ss.createDataFrame(rdd, schema=schema)
+    new_data = assembler_feats.transform(df)
+    predict = rfc_model.transform(new_data)
+    predictions = predict.select(['Timestamp', 'Label', 'prediction', 'Source', 'Destination'])
+    # Save per server results into tables
+    attacks_and_count_per_server(predictions, 3)
+    # Now save the raw prediction results into another table
+    predictions.write \
+      .format('org.apache.spark.sql.cassandra') \
+      .mode('append') \
+      .options(table='all_predictions', keyspace='cyber_id') \
+      .save()
+
+# Create Dstream and start streaming
+ssc = StreamingContext(sc, 3)
+ssc.checkpoint('home/ubuntu/batch/cyber/')
+
+kvs = KafkaUtils.createDirectStream(ssc, [kafka_topic],
+                                    {'metadata.broker.list': 'ec2-54-80-57-187.compute-1.amazonaws.com:9092',
+                                    'auto.offset.reset': 'smallest'})
+parsed_msg = kvs.map(lambda x: json.loads(x[1]))
+parsed_msg.foreachRDD(predict_and_save)
+
+ssc.start()
+ssc.awaitTermination()
