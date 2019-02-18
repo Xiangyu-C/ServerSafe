@@ -2,7 +2,9 @@
 from pyspark.ml.classification import RandomForestClassificationModel
 from pyspark.sql import SparkSession
 from pyspark import SparkConf
+from pyspark.streaming import StreamingContext
 from pyspark.ml.feature import VectorAssembler
+from pyspark.streaming.kafka import KafkaUtils
 from cassandra.cluster import Cluster
 from cassandra.util import uuid_from_time
 from datetime import datetime
@@ -18,7 +20,8 @@ conn = boto.connect_s3(aws_access_key, aws_secret_access_key)
 bk = conn.get_bucket('cyber-insight', validate=False)
 
 # Create spark session
-conf = SparkConf().set('spark.cassandra.connection.host', 'ec2-18-232-2-76.compute-1.amazonaws.com')
+conf = SparkConf().set('spark.cassandra.connection.host', 
+                       'ec2-18-232-2-76.compute-1.amazonaws.com')
 spark = SparkSession \
     .builder \
     .config(conf=conf) \
@@ -31,9 +34,6 @@ sc = spark.sparkContext
 # Connect to Cassandra DB for writing prediction results
 cluster = Cluster(['ec2-18-232-2-76.compute-1.amazonaws.com'])
 cass_session = cluster.connect('cyber_id')
-
-# Get proper feature names
-kafka_topic = 'cyber'
 
 feature_list_all = ['Bwd Pkt Len Min',
                     'Subflow Fwd Byts',
@@ -62,32 +62,6 @@ feature_list_all = ['Bwd Pkt Len Min',
                     'Timestamp'
                     ]
 
-schema = StructType([StructField('Bwd Pkt Len Min', FloatType(), True),
-                     StructField('Subflow Fwd Byts', FloatType(), True),
-                     StructField('TotLen Fwd Pkts', FloatType(), True),
-                     StructField('Fwd Pkt Len Mean', FloatType(), True),
-                     StructField('Bwd Pkt Len Std', FloatType(), True),
-                     StructField('Flow IAT Mean', FloatType(), True),
-                     StructField('Fwd IAT Min', FloatType(), True),
-                     StructField('Flow Duration', FloatType(), True),
-                     StructField('Flow IAT Std', FloatType(), True),
-                     StructField('Active Min', FloatType(), True),
-                     StructField('Active Mean', FloatType(), True),
-                     StructField('Bwd IAT Mean', FloatType(), True),
-                     StructField('Fwd IAT Mean', FloatType(), True),
-                     StructField('Init Fwd Win Byts', FloatType(), True),
-                     StructField('Fwd PSH Flags', FloatType(), True),
-                     StructField('SYN Flag Cnt', FloatType(), True),
-                     StructField('Fwd Pkts/s', FloatType(), True),
-                     StructField('Init Bwd Win Byts', FloatType(), True),
-                     StructField('Bwd Pkts/s', FloatType(), True),
-                     StructField('PSH Flag Cnt', FloatType(), True),
-                     StructField('Pkt Size Avg', FloatType(), True),
-                     StructField('Label', StringType(), True),
-                     StructField('Source', StringType(), True),
-                     StructField('Destination', StringType(), True),
-                     StructField('Timestamp', StringType(), True)]
-                    )
 
 feature_list = ['Bwd Pkt Len Min',
                 'Subflow Fwd Byts',
@@ -166,14 +140,36 @@ def attacks_and_count_per_server(df, tl):
                s7t, s8t, s9t, s10t, s11t, s12t, s13t)                        \
     )
 
+def convertColumn(df, names, newType):
+    """
+    Convert all columns to float type
+    """
+    for name in names:
+        df = df.withColumn(name, df[name].cast(newType))
+    return(df)
+
+def getSparkSessionInstance(sparkConf):
+    '''
+    Function to find spark session 
+    '''
+    conf = SparkConf().set('spark.cassandra.connection.host', 
+                       'ec2-18-232-2-76.compute-1.amazonaws.com')
+    if ("sparkSessionSingletonInstance" not in globals()):
+        globals()["sparkSessionSingletonInstance"] = SparkSession \
+            .builder \
+            .config(conf=conf) \
+            .getOrCreate()
+    return globals()["sparkSessionSingletonInstance"]
+
 def predict_and_save(rdd):
     """
     This function processes the json dstream and convert
     to a dataframe for the ML model to predict on the 
     server traffic events and save to a cassandra table
     """
-    ss = SparkSession(rdd.context)
-    df = ss.createDataFrame(rdd, schema=schema)
+    spark = getSparkSessionInstance(rdd.context.getConf())
+    df = spark.read.json(rdd)
+    df = convertColumn(df, feature_list, FloatType())
     new_data = assembler_feats.transform(df)
     predict = rfc_model.transform(new_data)
     predictions = predict.select(['Timestamp', 'Label', 'prediction', 'Source', 'Destination'])
@@ -186,6 +182,9 @@ def predict_and_save(rdd):
       .options(table='all_predictions', keyspace='cyber_id') \
       .save()
 
+# Get proper feature names
+kafka_topic = 'cyber'
+
 # Create Dstream and start streaming
 ssc = StreamingContext(sc, 3)
 ssc.checkpoint('home/ubuntu/batch/cyber/')
@@ -193,7 +192,9 @@ ssc.checkpoint('home/ubuntu/batch/cyber/')
 kvs = KafkaUtils.createDirectStream(ssc, [kafka_topic],
                                     {'metadata.broker.list': 'ec2-54-80-57-187.compute-1.amazonaws.com:9092',
                                     'auto.offset.reset': 'smallest'})
+# Load json messages
 parsed_msg = kvs.map(lambda x: json.loads(x[1]))
+# Process the messages
 parsed_msg.foreachRDD(predict_and_save)
 
 ssc.start()
