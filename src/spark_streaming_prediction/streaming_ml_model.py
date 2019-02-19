@@ -2,6 +2,7 @@
 from pyspark.ml.classification import RandomForestClassificationModel
 from pyspark.sql import SparkSession
 from pyspark import SparkConf
+from pyspark.sql.types import *
 from pyspark.streaming import StreamingContext
 from pyspark.ml.feature import VectorAssembler
 from pyspark.streaming.kafka import KafkaUtils
