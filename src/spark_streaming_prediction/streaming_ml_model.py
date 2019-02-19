@@ -2,6 +2,7 @@
 from pyspark.ml.classification import RandomForestClassificationModel
 from pyspark.sql import SparkSession
 from pyspark import SparkConf
+from pyspark.sql.types import *
 from pyspark.streaming import StreamingContext
 from pyspark.ml.feature import VectorAssembler
 from pyspark.streaming.kafka import KafkaUtils
@@ -182,7 +183,7 @@ def predict_and_save(rdd):
       .options(table='all_predictions', keyspace='cyber_id') \
       .save()
 
-# Get proper feature names
+# Get proper kafka topic name
 kafka_topic = 'cyber'
 
 # Create Dstream and start streaming
