@@ -175,7 +175,7 @@ def predict_and_save(rdd):
     predict = rfc_model.transform(new_data)
     predictions = predict.select(['Timestamp', 'Label', 'prediction', 'Source', 'Destination'])
     # Save per server results into tables
-    attacks_and_count_per_server(predictions, 3)
+    attacks_and_count_per_server(predictions, 1)
     # Now save the raw prediction results into another table
     predictions.write \
       .format('org.apache.spark.sql.cassandra') \
@@ -187,7 +187,7 @@ def predict_and_save(rdd):
 kafka_topic = 'cyber'
 
 # Create Dstream and start streaming
-ssc = StreamingContext(sc, 3)
+ssc = StreamingContext(sc, 1)
 ssc.checkpoint('home/ubuntu/batch/cyber/')
 
 kvs = KafkaUtils.createDirectStream(ssc, [kafka_topic],
