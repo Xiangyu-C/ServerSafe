@@ -21,8 +21,9 @@ conn = boto.connect_s3(aws_access_key, aws_secret_access_key)
 bk = conn.get_bucket('cyber-insight', validate=False)
 
 # Create spark session
-conf = SparkConf().set('spark.cassandra.connection.host', 
-                       'ec2-18-232-2-76.compute-1.amazonaws.com')
+conf = SparkConf().set('spark.cassandra.connection.host', 'ec2-18-232-2-76.compute-1.amazonaws.com')   \
+                  .set('spark.streaming.backpressure.enabled', True)  \
+                  .set('spark.streaming.kafka.maxRatePerPartition', 500) 
 spark = SparkSession \
     .builder \
     .config(conf=conf) \
