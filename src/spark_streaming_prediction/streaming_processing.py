@@ -226,22 +226,22 @@ def process(rdd):
     top_6_preds = correct_preds.groupby('predicted_labels').count().orderBy('count', ascending=False).collect()[0:6]
     top_6_class = test.groupby('Label').count().orderBy('count', ascending=False).collect()[0:6]
 
-    a1, a2, a3, a4, a5, a6 = a1.value+top_6_preds[0][1],    \
-                             a2.value+top_6_preds[1][1],    \
-                             a3.value+top_6_preds[2][1],    \
-                             a4.value+top_6_preds[3][1],    \
-                             a5.value+top_6_preds[4][1],    \
-                             a6.value+top_6_preds[5][1]
+    a1 += top_6_preds[0][1]
+    a2 += top_6_preds[1][1]
+    a3 += top_6_preds[2][1]
+    a4 += top_6_preds[3][1]
+    a5 += top_6_preds[4][1]
+    a6 += top_6_preds[5][1]
 
-    t1, t2, t3, t4, t5, t6 = t1.value+top_6_class[0][1],    \
-                             t2.value+top_6_class[1][1],    \
-                             t3.value+top_6_class[2][1],    \
-                             t4.value+top_6_class[3][1],    \
-                             t5.value+top_6_class[4][1],    \
-                             t6.value+top_6_class[5][1]
+    t1 += top_6_class[0][1]
+    t2 += top_6_class[1][1]
+    t3 += top_6_class[2][1]
+    t4 += top_6_class[3][1]
+    t5 += top_6_class[4][1]
+    t6 += top_6_class[5][1]
 
-    sum1 = a1+a2+a3+a4+a5+a6
-    sum2 = t1+t2+t3+t4+t5+t6
+    sum1 = a1.value+a2.value+a3.value+a4.value+a5.value+a6.value
+    sum2 = t1.value+t2.value+t3.value+t4.value+t5.value+t6.value
 
     cass_session.execute(
         """
@@ -249,10 +249,14 @@ def process(rdd):
                                           t1, t2, t3, t4, t5, t6, t7)
         values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """,
-        ('accu', uuid_from_time(datetime.now()), str(round(a1/t1*100, 1))+'%', str(round(a2/t2*100, 1))+'%', str(round(a3/t3*100, 1))+'%',     \
-                                                 str(round(a4/t4*100, 1))+'%', str(round(a5/t5*100, 1))+'%', str(round(a6/t6*100, 1))+'%',     \
-                                                 str(round(sum1/sum2*100, 1))+'%',       \
-                                                 t1, t2, t3, t4, t5, t6, sum2) \
+        ('accu', uuid_from_time(datetime.now()), str(round(a1.value/t1.value*100, 1))+'%',     \
+                                                 str(round(a2.value/t2.value*100, 1))+'%',     \
+                                                 str(round(a3.value/t3.value*100, 1))+'%',     \
+                                                 str(round(a4.value/t4.value*100, 1))+'%',     \
+                                                 str(round(a5.value/t5.value*100, 1))+'%',     \
+                                                 str(round(a6.value/t6.value*100, 1))+'%',     \
+                                                 str(round(sum1/sum2*100, 1))+'%',             \
+                                                 t1, t2, t3, t4, t5, t6, sum2)                 \
     )
 
 
