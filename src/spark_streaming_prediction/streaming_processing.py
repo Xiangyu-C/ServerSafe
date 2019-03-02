@@ -206,11 +206,6 @@ def process(rdd):
     start = time.time()
     spark = getSparkSessionInstance(rdd.context.getConf())
 
-    global a1; global a2; global a3
-    global a4; global a5; global a6
-    global t1; global t2; global t3
-    global t4; global t5; global t6
-
     df = spark.read.json(rdd)
     df = convertColumn(df, feature_list, FloatType())
     new_data = assembler_feats.transform(df)
