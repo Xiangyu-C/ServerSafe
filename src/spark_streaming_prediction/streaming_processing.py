@@ -25,7 +25,7 @@ bk = conn.get_bucket('cyber-insight', validate=False)
 # Create spark session
 conf = SparkConf().set('spark.cassandra.connection.host', 'ec2-18-232-2-76.compute-1.amazonaws.com')   \
                   .set('spark.streaming.backpressure.enabled', True)  \
-                  .set('spark.streaming.kafka.maxRatePerPartition', 500)
+                  .set('spark.streaming.kafka.maxRatePerPartition', 5000)
 spark = SparkSession \
     .builder \
     .config(conf=conf)  \
@@ -189,7 +189,7 @@ def getSparkSessionInstance(sparkConf):
     conf = SparkConf().set('spark.cassandra.connection.host',
                        'ec2-18-232-2-76.compute-1.amazonaws.com')  \
                       .set('spark.streaming.backpressure.enabled', True)  \
-                      .set('spark.streaming.kafka.maxRatePerPartition', 500)
+                      .set('spark.streaming.kafka.maxRatePerPartition', 5000)
     if ("sparkSessionSingletonInstance" not in globals()):
         globals()["sparkSessionSingletonInstance"] = SparkSession \
             .builder \
@@ -218,7 +218,8 @@ def process(rdd):
     mapping_expr = create_map([lit(x) for x in chain(*labels_dict.items())])
     test = test.withColumn('predicted_labels', mapping_expr.getItem(col('prediction')))
     correct_preds = test.where('predicted_labels in (Label)')
-    top_6_preds = correct_preds.groupby('predicted_labels').count().orderBy('count', ascending=False).collect()[0:6]
+    top_6_preds = correct_preds.groupby('predicted_labels')     \
+                               .count().orderBy('count', ascending=False).collect()[0:6]
     top_6_class = test.groupby('Label').count().orderBy('count', ascending=False).collect()[0:6]
 
     a1 += top_6_preds[0][1]
