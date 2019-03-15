@@ -43,7 +43,7 @@ a5 = sc.accumulator(0); t5 = sc.accumulator(0)
 a6 = sc.accumulator(0); t6 = sc.accumulator(0)
 
 kafka_topic = 'cyber'
-ssc = StreamingContext(sc, 3)
+ssc = StreamingContext(sc, 1)
 ssc.checkpoint('home/ubuntu/batch/cyber/')
 
 kvs = KafkaUtils.createDirectStream(ssc, [kafka_topic],
