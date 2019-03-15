@@ -44,7 +44,7 @@ a6 = sc.accumulator(0); t6 = sc.accumulator(0)
 
 kafka_topic = 'cyber'
 ssc = StreamingContext(sc, 3)
-#ssc.checkpoint('home/ubuntu/batch/cyber/')
+ssc.checkpoint('home/ubuntu/batch/cyber/')
 
 kvs = KafkaUtils.createDirectStream(ssc, [kafka_topic],
                                     {'metadata.broker.list': 'ec2-54-80-57-187.compute-1.amazonaws.com:9092',
