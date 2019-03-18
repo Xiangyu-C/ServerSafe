@@ -9,12 +9,12 @@ import pandas as pd
 import dash_table
 import plotly.plotly as py
 import plotly.graph_objs as go
+from tools import utility
 
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
+cass_session = utility.cass_conn()
 
-cluster = Cluster(['ec2-18-232-2-76.compute-1.amazonaws.com'])
-cass_session = cluster.connect('cyber_id')
 server_list = ['168.16.4.175',
                '192.0.1.242',
                '192.31.198.84',
@@ -51,13 +51,15 @@ colors = {
     'text': '#7FDBFF'
 }
 
-app.layout = html.Div(style={'backgroundColor': colors['background'], 'color': colors['text']}, children=[
+app.layout = html.Div(style={'backgroundColor': colors['background'],
+                             'color': colors['text']}, children=[
     html.H1(style={'textAlign': 'center'}, children='Server Safe Monitor Dashboard'),
     # Put the two graphs side by side
     html.Div([html.Div([dcc.Graph(id='live-update-graph-attack')], className='six columns'),
               html.Div([dcc.Graph(id='live-update-graph-traffic')], className='six columns'),
              ], className='row'),
     html.Div(id='live-update-table'),
+    # The following will update the two figures and one table every second
     dcc.Interval(
         id='interval-component',
         interval=1*1000, # in milliseconds
@@ -67,6 +69,13 @@ app.layout = html.Div(style={'backgroundColor': colors['background'], 'color': c
 @app.callback(Output('live-update-graph-attack', 'figure'),
               [Input('interval-component', 'n_intervals')])
 def update_graph_attack_live(n):
+    """
+    This function will update the bar graph
+    showing predicted attacks per second per
+    server ip address. It pulls data from
+    cassandra table and only retrieves first
+    row since the data are presorted by time
+    """
     data = {
         'servers': server_list,
         'attacks': []
@@ -99,6 +108,13 @@ def update_graph_attack_live(n):
 @app.callback(Output('live-update-graph-traffic', 'figure'),
               [Input('interval-component', 'n_intervals')])
 def update_graph_traffic_live(n):
+    """
+    This function will update the bar graph
+    showing total events per second per
+    server ip address. It pulls data from
+    cassandra table and only retrieves first
+    row since the data are presorted by time
+    """
     data = {
         'servers': server_list,
         'traffic': []
@@ -138,6 +154,13 @@ def update_graph_traffic_live(n):
 @app.callback(Output('live-update-table', 'children'),
               [Input('interval-component', 'n_intervals')])
 def update_table_live(n):
+    """
+    This is the function to pull data from cassandra
+    table and converte to a dataframe. It calculates the
+    prediction accuracy and cumulative counts for top 6
+    classes from all the classifications. Then the data
+    will be rendered into a dash datatable on the UI
+    """
     df = pd.DataFrame(list(cass_session.execute('select * from all_predictions')))
     df['predicted_labels'] = df['prediction'].map(labels_dict)
     top_6 = df['Label'].value_counts()[0:6]

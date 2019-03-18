@@ -14,48 +14,42 @@ from json import loads
 import json
 import time
 import os, boto
+from tools import utility
 
+def get_col_names():
+    """
+    This function defines all column
+    names to be used by stream process
+    """
 
-# Set up connection with S3
-aws_access_key = os.getenv('AWS_ACCESS_KEY_ID', 'default')
-aws_secret_access_key = os.getenv('AWS_SECRET_ACCESS_KEY', 'default')
-conn = boto.connect_s3(aws_access_key, aws_secret_access_key)
-bk = conn.get_bucket('cyber-insight', validate=False)
+    feature_list_all = ['Bwd Pkt Len Min',
+                        'Subflow Fwd Byts',
+                        'TotLen Fwd Pkts',
+                        'Fwd Pkt Len Mean',
+                        'Bwd Pkt Len Std',
+                        'Flow IAT Mean',
+                        'Fwd IAT Min',
+                        'Flow Duration',
+                        'Flow IAT Std',
+                        'Active Min',
+                        'Active Mean',
+                        'Bwd IAT Mean',
+                        'Fwd IAT Mean',
+                        'Init Fwd Win Byts',
+                        'Fwd PSH Flags',
+                        'SYN Flag Cnt',
+                        'Fwd Pkts/s',
+                        'Init Bwd Win Byts',
+                        'Bwd Pkts/s',
+                        'PSH Flag Cnt',
+                        'Pkt Size Avg',
+                        'Label',
+                        'Timestamp',
+                        'Source',
+                        'Destination'
+                        ]
 
-# Create spark session
-conf = SparkConf().set('spark.cassandra.connection.host', 'ec2-18-232-2-76.compute-1.amazonaws.com')   \
-                  .set('spark.streaming.backpressure.enabled', True)  \
-                  .set('spark.streaming.kafka.maxRatePerPartition', 5000)
-spark = SparkSession \
-    .builder \
-    .config(conf=conf)  \
-    .appName("Real time prediction") \
-    .master('spark://ip-10-0-0-14.ec2.internal:7077') \
-    .getOrCreate()
-
-sc = spark.sparkContext
-
-a1 = sc.accumulator(0); t1 = sc.accumulator(0)
-a2 = sc.accumulator(0); t2 = sc.accumulator(0)
-a3 = sc.accumulator(0); t3 = sc.accumulator(0)
-a4 = sc.accumulator(0); t4 = sc.accumulator(0)
-a5 = sc.accumulator(0); t5 = sc.accumulator(0)
-a6 = sc.accumulator(0); t6 = sc.accumulator(0)
-
-kafka_topic = 'cyber'
-ssc = StreamingContext(sc, 1)
-ssc.checkpoint('home/ubuntu/batch/cyber/')
-
-kvs = KafkaUtils.createDirectStream(ssc, [kafka_topic],
-                                    {'metadata.broker.list': 'ec2-54-80-57-187.compute-1.amazonaws.com:9092',
-                                    'auto.offset.reset': 'smallest'})
-
-# Connect to Cassandra DB for writing prediction results
-cluster = Cluster(['ec2-18-232-2-76.compute-1.amazonaws.com'])
-cass_session = cluster.connect('cyber_id')
-
-# Get proper feature names
-feature_list_all = ['Bwd Pkt Len Min',
+    feature_list = ['Bwd Pkt Len Min',
                     'Subflow Fwd Byts',
                     'TotLen Fwd Pkts',
                     'Fwd Pkt Len Mean',
@@ -75,53 +69,24 @@ feature_list_all = ['Bwd Pkt Len Min',
                     'Init Bwd Win Byts',
                     'Bwd Pkts/s',
                     'PSH Flag Cnt',
-                    'Pkt Size Avg',
-                    'Label',
-                    'Timestamp',
-                    'Source',
-                    'Destination'
+                    'Pkt Size Avg'
                     ]
 
-feature_list = ['Bwd Pkt Len Min',
-                'Subflow Fwd Byts',
-                'TotLen Fwd Pkts',
-                'Fwd Pkt Len Mean',
-                'Bwd Pkt Len Std',
-                'Flow IAT Mean',
-                'Fwd IAT Min',
-                'Flow Duration',
-                'Flow IAT Std',
-                'Active Min',
-                'Active Mean',
-                'Bwd IAT Mean',
-                'Fwd IAT Mean',
-                'Init Fwd Win Byts',
-                'Fwd PSH Flags',
-                'SYN Flag Cnt',
-                'Fwd Pkts/s',
-                'Init Bwd Win Byts',
-                'Bwd Pkts/s',
-                'PSH Flag Cnt',
-                'Pkt Size Avg'
-                ]
+    labels_dict = {0: 'Benign',
+                   1: 'DDOS attack-HOIC',
+                   2: 'DDoS attacks-LOIC-HTTP',
+                   3: 'DoS attacks-Hulk',
+                   4: 'Bot',
+                   5: 'FTP-BruteForce',
+                   6: 'SSH-Bruteforce',
+                   7: 'Infilteration',
+                   8: 'DoS attacks-SlowHTTPTest',
+                   9: 'DoS attacks-GoldenEye',
+                  10: 'DoS attacks-Slowloris',
+                  11: 'Brute Force -Web',
+                  12: 'DDOS attack-LOIC-UDP'}
 
-labels_dict = {0: 'Benign',
-               1: 'DDOS attack-HOIC',
-               2: 'DDoS attacks-LOIC-HTTP',
-               3: 'DoS attacks-Hulk',
-               4: 'Bot',
-               5: 'FTP-BruteForce',
-               6: 'SSH-Bruteforce',
-               7: 'Infilteration',
-               8: 'DoS attacks-SlowHTTPTest',
-               9: 'DoS attacks-GoldenEye',
-              10: 'DoS attacks-Slowloris',
-              11: 'Brute Force -Web',
-              12: 'DDOS attack-LOIC-UDP'}
-
-# Reload trained randomforest model from s3
-rfc_model = RandomForestClassificationModel.load('s3n://cyber-insight/rfc_model_multi')
-assembler_feats = VectorAssembler(inputCols=feature_list, outputCol='features')
+    return(feature_list, feature_list_all, labels_dict)
 
 def attacks_and_count_per_server(df, tl):
     """
@@ -131,6 +96,9 @@ def attacks_and_count_per_server(df, tl):
     2. Total traffic per server per second
     Then write to a Cassandra table
     """
+    # get connection to Cassandra
+    cass_session = utility.cass_conn()
+
     df.createOrReplaceTempView('results')
     # Get malicious predictions per server IP
     all_predictions = spark.sql("select Destination, count(*) as count from results \
@@ -176,15 +144,10 @@ def attacks_and_count_per_server(df, tl):
     else:
         pass
 
-def convertColumn(df, names, newType):
-  for name in names:
-     df = df.withColumn(name, df[name].cast(newType))
-  return(df)
-
-
 def getSparkSessionInstance(sparkConf):
     '''
     Function to find spark session
+    to use in foreachRDD function
     '''
     conf = SparkConf().set('spark.cassandra.connection.host',
                        'ec2-18-232-2-76.compute-1.amazonaws.com')  \
@@ -205,16 +168,18 @@ def process(rdd):
 	"""
     start = time.time()
     spark = getSparkSessionInstance(rdd.context.getConf())
+    # Get feature list and label dictionary for conversion
+    feature_list, feature_list_all, labels_dict = get_col_names()
 
     df = spark.read.json(rdd)
-    df = convertColumn(df, feature_list, FloatType())
+    df = utility.convertColumn(df, feature_list, FloatType())
     new_data = assembler_feats.transform(df)
     predict = rfc_model.transform(new_data)
     test = predict.select(['Timestamp', 'Label', 'prediction', 'Source', 'Destination'])
     end = time.time()
     tl = end-start
     attacks_and_count_per_server(test, tl)
-
+    # Map prediction values to class names
     mapping_expr = create_map([lit(x) for x in chain(*labels_dict.items())])
     test = test.withColumn('predicted_labels', mapping_expr.getItem(col('prediction')))
     correct_preds = test.where('predicted_labels in (Label)')
@@ -239,6 +204,8 @@ def process(rdd):
     sum1 = a1.value+a2.value+a3.value+a4.value+a5.value+a6.value
     sum2 = t1.value+t2.value+t3.value+t4.value+t5.value+t6.value
 
+    # Get connection to Cassandra
+    cass_session = utility.cass_conn()
     cass_session.execute(
         """
         insert into pred_accuracy (id, t, a1, a2, a3, a4, a5, a6, a7,
@@ -262,8 +229,36 @@ def process(rdd):
           .options(table='all_predictions', keyspace='cyber_id') \
           .save()
 
-parsed_msg = kvs.map(lambda x: json.loads(x[1]))
-parsed_msg.foreachRDD(process)
+if __name__ == '__main__':
+    # get s3 connection
+    bk = utility.conn_s3()
 
-ssc.start()
-ssc.awaitTermination()
+    # get spark session and spark context
+    spark, sc = utility.spark_session()
+
+    a1 = sc.accumulator(0); t1 = sc.accumulator(0)
+    a2 = sc.accumulator(0); t2 = sc.accumulator(0)
+    a3 = sc.accumulator(0); t3 = sc.accumulator(0)
+    a4 = sc.accumulator(0); t4 = sc.accumulator(0)
+    a5 = sc.accumulator(0); t5 = sc.accumulator(0)
+    a6 = sc.accumulator(0); t6 = sc.accumulator(0)
+
+    # Reload trained randomforest model from s3 and get feature list
+    feature_list = get_col_names()[0]
+    rfc_model = RandomForestClassificationModel.load('s3n://cyber-insight/rfc_model_multi')
+    assembler_feats = VectorAssembler(inputCols=feature_list, outputCol='features')
+
+    kafka_topic = 'cyber'
+    ssc = StreamingContext(sc, 1)
+    ssc.checkpoint('home/ubuntu/batch/cyber/')
+
+    kvs = KafkaUtils.createDirectStream(ssc, [kafka_topic],
+                                        {'metadata.broker.list':    \
+                                         'ec2-54-80-57-187.compute-1.amazonaws.com:9092',
+                                         'auto.offset.reset': 'smallest'})
+    # Load each json message and decode
+    parsed_msg = kvs.map(lambda x: json.loads(x[1]))
+    parsed_msg.foreachRDD(process)
+
+    ssc.start()
+    ssc.awaitTermination()
