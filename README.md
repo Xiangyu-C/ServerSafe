@@ -29,7 +29,7 @@ To replicate my pipeline follow the following steps:
 * copy Cassandra/Create_tables.py to cassandra master node (or node 1)
 * copy Dash/tables.py to dash node
 * copy tools/utility.py to spark, kafka, and cassandra master nodes
-
+---
 * First run Create_tables.py on cassandra master node to create 3 tables
 * Run spark_ml.py on spark cluster to train and save the randomforest model first
 * Start tables.py (front end app) using gunicorn according to this link: [here](https://github.com/OXPHOS/GeneMiner/wiki/Setup-front-end-with-plotly-dash,-flask,-gunicorn-and-nginx)
