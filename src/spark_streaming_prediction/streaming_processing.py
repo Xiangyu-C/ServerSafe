@@ -86,7 +86,7 @@ def get_col_names():
                   11: 'Brute Force -Web',
                   12: 'DDOS attack-LOIC-UDP'}
 
-    return(feature_list, feature_list_all, labels_dict)
+    return feature_list, feature_list_all, labels_dict
 
 def attacks_and_count_per_server(df, tl):
     """

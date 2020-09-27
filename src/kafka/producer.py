@@ -27,7 +27,7 @@ def get_file(bucket_name):
     # Get indexes for features in headers in streaming data
     feature_index_list = [all_headers.index(x) for x in feature_list]
 
-    return(feature_list, feature_index_list)
+    return feature_list, feature_index_list
 
 def get_producer(server_address):
     """
@@ -35,16 +35,15 @@ def get_producer(server_address):
     and return a kafka-python producer
     """
     producer = KafkaProducer(bootstrap_servers=server_address)
-    return(producer)
+    return producer
 
 def is_number(s):
     """
     This function checks if a data point is a number
     """
-    try:
-        float(s)
+    if s.isdigit():
         return True
-    except ValueError:
+    else:
         return False
 
 def convert_to_dict_then_json(row, sep, feature_list, feature_index_list):
@@ -62,7 +61,7 @@ def convert_to_dict_then_json(row, sep, feature_list, feature_index_list):
     feature_values_clean.extend([label, source_ip, dest_ip, time_stamp])
     feat_dict = dict(zip(feature_list, feature_values_clean))
     feat_json = json.dumps(feat_dict).encode('utf-8')
-    return(feat_json)
+    return feat_json
 
 if __name__ == '__main__':
     server_address = 'ec2-54-80-57-187.compute-1.amazonaws.com:9092'
@@ -71,21 +70,21 @@ if __name__ == '__main__':
     csv_stream = smart_open('s3://cyber-insight/cyber_attack_stream_new.csv')
     bucket_name = 'cyber-insight'
     kafka_topic = 'cyber'
-    sep=','
+    sep = ','
 
     feature_list, feature_index_list = get_file(bucket_name)
-    n=0
+    n = 0
     start = time.time()
     for line in csv_stream:
         # Skip header row
-        if n!=0:
+        if n != 0:
             producer.send(kafka_topic, convert_to_dict_then_json(line,
                                                                  sep,
                                                                  feature_list,
                                                                  feature_index_list))
-        n+=1
+        n += 1
         # Stream 10 million rows and then stop and print producer speed
-        if n>=10000000:
+        if n >= 10000000:
             end = time.time()
-            print('End of streaming.', ' Sent at ', 10000000/(end-start), ' msg/sec')
+            print(f'End of streaming. Sent at {10000000/(end-start)} msg/sec')
             break

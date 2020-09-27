@@ -18,7 +18,7 @@ def rfc_train(df):
     the csv file on s3
     """
 
-    assembler_feats=VectorAssembler(inputCols=feat_cols, outputCol='features')
+    assembler_feats = VectorAssembler(inputCols=feat_cols, outputCol='features')
     label_indexer = StringIndexer(inputCol='Label', outputCol="target")
     pipeline = Pipeline(stages=[assembler_feats, label_indexer])
 

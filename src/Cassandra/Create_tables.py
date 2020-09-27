@@ -1,3 +1,4 @@
+# Datastax Apache cassandra driver. do pip install cassandra-driver
 from cassandra.cluster import Cluster
 from tools import utility
 
